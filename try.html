@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SolarPulse | ML Flare Prediction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --solar-orange: #ff8a00;
+            --deep-space: #05070a;
+            --panel-bg: rgba(17, 24, 39, 0.8);
+        }
+
+        body {
+            background-color: var(--deep-space);
+            background-image: radial-gradient(circle at 50% 50%, #111827 0%, #05070a 100%);
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        .tech-font { font-family: 'Orbitron', sans-serif; }
+        .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .glow-red { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); border: 1px solid rgba(239, 68, 68, 0.5); }
+
+        /* --- FAKE 3D GÜNEŞ EFEKTİ --- */
+        .sun-sphere {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            /* 3D derinlik için radial gradient */
+            background: radial-gradient(circle at 35% 35%, 
+                #ffffff 0%, 
+                #ffde17 25%, 
+                #ff8a00 55%, 
+                #cc4400 100%);
+            /* Dış parlama ve iç gölge kombinasyonu */
+            box-shadow: 
+                0 0 20px rgba(255, 138, 0, 0.6),
+                0 0 40px rgba(255, 68, 0, 0.4),
+                inset -6px -6px 12px rgba(0,0,0,0.4);
+            
+            animation: sunPulse 3s infinite alternate ease-in-out;
+            transition: all 0.4s ease;
+            cursor: pointer;
+        }
+
+        /* Hover animasyonu */
+        .sun-sphere:hover {
+            transform: scale(1.15) rotate(10deg);
+            filter: brightness(1.2);
+            box-shadow: 
+                0 0 30px rgba(255, 138, 0, 0.8),
+                0 0 60px rgba(255, 68, 0, 0.6),
+                inset -2px -2px 8px rgba(0,0,0,0.2);
+        }
+
+        @keyframes sunPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.06); filter: brightness(1.15); }
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- ÜST BAR -->
+        <header class="flex flex-col md:flex-row justify-between items-center glass-panel p-6 rounded-2xl glow-blue">
+            <div class="flex items-center gap-6 mb-4 md:mb-0">
+                <!-- 3D GÜNEŞ BURADA -->
+                <div class="sun-sphere"></div>
+                <div>
+                    <h1 class="tech-font text-2xl font-bold tracking-tighter text-orange-500">SOLARPULSE</h1>
+                    <p class="text-xs text-blue-400 font-medium tracking-[0.2em]">STORM EARLY WARNING SYSTEM</p>
+                </div>
+            </div>
+            
+            <div class="flex gap-6 text-sm">
+                <div class="text-right border-r border-gray-700 pr-6">
+                    <p class="text-gray-500 uppercase text-[10px]">Status</p>
+                    <p class="text-green-400 flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SYSTEM ACTIVE</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-gray-500 uppercase text-[10px]">Reference</p>
+                    <p class="tech-font">L1-DSCOVR:01</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- SOL KOLON -->
+            <aside class="lg:col-span-3 space-y-6">
+                <div class="glass-panel p-6 rounded-2xl h-full flex flex-col justify-between">
+                    <div>
+                        <h2 class="tech-font text-sm mb-6 text-blue-300 flex items-center gap-2">
+                            <i class="fas fa-sliders-h"></i> PARAMETERS
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">Observation Start</label>
+                                <input type="datetime-local" id="startDate" class="w-full bg-black/40 border border-gray-700 rounded-lg p-3 text-sm text-white focus:border-orange-500 outline-none" value="2010-08-06T06:36">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">Observation End</label>
+                                <input type="datetime-local" id="endDate" class="w-full bg-black/40 border border-gray-700 rounded-lg p-3 text-sm text-white focus:border-orange-500 outline-none" value="2010-08-06T06:48">
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="runSimulation()" id="simBtn" class="w-full mt-8 bg-gradient-to-r from-blue-600 to-blue-400 text-white tech-font text-xs py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+                        RUN ANALYSIS
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MERKEZ/SAĞ KOLON -->
+            <main class="lg:col-span-9 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="resultBox" class="glass-panel p-8 rounded-2xl flex items-center justify-between transition-all duration-500 relative group overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 text-9xl text-white/5 rotate-12 transition-transform group-hover:scale-110">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs text-gray-400 uppercase tracking-widest mb-1">XGBoost Forecast</h3>
+                            <h2 class="text-4xl font-black tech-font uppercase tracking-tight" id="predictionText">IDLE</h2>
+                            <p class="text-sm text-blue-400 mt-2 flex items-center gap-2"><i class="fas fa-microchip"></i> Prediction Logic: Live API</p>
+                        </div>
+                        <div class="text-right">
+                            <h3 class="text-xs text-gray-400 uppercase tracking-widest mb-1">Intensity</h3>
+                            <div class="text-6xl font-black tech-font text-white/90" id="probabilityText">--<span class="text-xl">%</span></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-8 rounded-2xl grid grid-cols-2 gap-4">
+                        <div class="border-l-2 border-orange-500 pl-4">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-tighter">NASA DONKI</p>
+                            <p class="text-lg font-bold tech-font text-green-400 uppercase">ONLINE</p>
+                        </div>
+                        <div class="border-l-2 border-blue-500 pl-4">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-tighter">Current Flare Risk</p>
+                            <p class="text-lg font-bold tech-font text-white uppercase" id="riskLevel">MODERATE</p>
+                        </div>
+                        <div class="col-span-2 pt-2 border-t border-gray-800 flex items-center justify-between text-[10px]">
+                            <span class="text-gray-500">ML CONFIDENCE SCORE: 94.2%</span>
+                            <span class="text-blue-500">V.3.1.2_RELEASE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl relative">
+                    <h3 class="tech-font text-[10px] text-gray-400 uppercase tracking-[0.3em] mb-6">Magnetic Intensity Sensor Telemetry</h3>
+                    <div style="height: 350px;">
+                        <canvas id="flareChart"></canvas>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById("flareChart").getContext("2d");
+        let flareChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: ["T-12m", "T-10m", "T-8m", "T-6m", "T-4m", "T-2m", "NOW"],
+                datasets: [{
+                    label: "Magnetic Intensity (nT)",
+                    data: [12, 19, 15, 8, 12, 11, 15],
+                    borderColor: "#3b82f6",
+                    borderWidth: 3,
+                    pointBackgroundColor: "#fff",
+                    fill: true,
+                    tension: 0.4,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#64748b" } },
+                    x: { grid: { display: false }, ticks: { color: "#64748b" } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        async function runSimulation() {
+            const btn = document.getElementById("simBtn");
+            btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> ANALYZING...';
+            btn.classList.add("opacity-70", "pointer-events-none");
+
+            await new Promise(r => setTimeout(r, 1500));
+            const data = {
+                prediction: Math.random() > 0.5 ? 1 : 0,
+                probability: (Math.random() * 100).toFixed(1),
+                graph_data: {
+                    timestamps: ["08:01", "08:03", "08:05", "08:07", "08:09", "08:11", "08:12"],
+                    feature_values: Array.from({length: 7}, () => Math.floor(Math.random() * 100))
+                }
+            };
+
+            const probText = document.getElementById("probabilityText");
+            const predText = document.getElementById("predictionText");
+            const resultBox = document.getElementById("resultBox");
+            const riskLevel = document.getElementById("riskLevel");
+
+            probText.innerHTML = `${data.probability}<span class="text-xl">%</span>`;
+
+            if (data.prediction === 1 || data.probability >= 50) {
+                predText.innerText = "CRITICAL FLARE";
+                predText.className = "text-4xl font-black tech-font text-red-500 uppercase";
+                resultBox.className = "glass-panel p-8 rounded-2xl flex items-center justify-between transition-all duration-500 glow-red";
+                riskLevel.innerText = "CRITICAL";
+                riskLevel.className = "text-lg font-bold tech-font text-red-500 uppercase";
+            } else {
+                predText.innerText = "CALM (NO FLARE)";
+                predText.className = "text-4xl font-black tech-font text-green-400 uppercase";
+                resultBox.className = "glass-panel p-8 rounded-2xl flex items-center justify-between transition-all duration-500 glow-blue";
+                riskLevel.innerText = "STABLE";
+                riskLevel.className = "text-lg font-bold tech-font text-blue-400 uppercase";
+            }
+
+            flareChart.data.labels = data.graph_data.timestamps;
+            flareChart.data.datasets[0].data = data.graph_data.feature_values;
+            flareChart.update();
+
+            btn.innerHTML = 'RUN ANALYSIS';
+            btn.classList.remove("opacity-70", "pointer-events-none");
+        }
+    </script>
+</body>
+</html>
